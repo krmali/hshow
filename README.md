@@ -48,6 +48,35 @@ Produces a single static binary; the HTML templates are embedded via
 `go:embed`, so nothing else needs to ship alongside it except the binary
 itself.
 
+## Running with Docker
+
+The image bundles the `hledger` CLI, so you only need to mount your journal
+file from the host:
+
+```sh
+docker build -t hshow .
+docker run -d --name hshow \
+  -p 127.0.0.1:8080:8080 \
+  -e HSHOW_JOURNAL=/data/journal.hledger \
+  -v /path/to/your.journal:/data/journal.hledger:ro \
+  hshow
+```
+
+The journal file lives outside the container/image — only the mounted path
+changes, the image itself never needs rebuilding when your journal changes.
+
+### With Docker Compose
+
+```sh
+HSHOW_JOURNAL_HOST_PATH=/path/to/your.journal docker compose up -d --build
+```
+
+`HSHOW_JOURNAL_HOST_PATH` points at your real journal file on the host; it
+defaults to the bundled `testdata/sample.journal` if unset, so
+`docker compose up -d --build` with no environment variable works out of the
+box for a quick look. See `docker-compose.yml` to adjust the published port
+or add an `HSHOW_HLEDGER_BIN` override if needed.
+
 ## Deploying behind nginx
 
 `hshow` binds to `127.0.0.1:8080` by default and has no TLS or auth of its
