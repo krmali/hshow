@@ -2,9 +2,11 @@
 package web
 
 import (
+	"encoding/json"
 	"html/template"
 	"io/fs"
 	"log"
+	"math"
 	"net/http"
 	"time"
 
@@ -35,10 +37,24 @@ func NewServer(templatesFS fs.FS, runner hledger.Runner) (*Server, error) {
 	}, nil
 }
 
+// expensesPrefix is the hledger account (sub)tree treated as "expenses" for
+// the charts below.
+const expensesPrefix = "expenses"
+
+// expenseChartData is marshaled to JSON and consumed by Chart.js in the
+// dashboard partial to render the expense pie and bar charts.
+type expenseChartData struct {
+	Labels   []string  `json:"labels"`
+	Current  []float64 `json:"current"`
+	Previous []float64 `json:"previous"`
+}
+
 // viewData is the data passed to the dashboard templates.
 type viewData struct {
 	GeneratedAt time.Time
 	Changes     []dashboard.Change
+	Expenses    []dashboard.Change
+	ChartJSON   template.JS
 	Error       string
 }
 
@@ -55,10 +71,37 @@ func (s *Server) loadView() viewData {
 		return viewData{GeneratedAt: now, Error: err.Error()}
 	}
 
+	expenses := dashboard.TopChanges(
+		dashboard.FilterByPrefix(current, expensesPrefix),
+		dashboard.FilterByPrefix(previous, expensesPrefix),
+		s.topN,
+	)
+
 	return viewData{
 		GeneratedAt: now,
 		Changes:     dashboard.TopChanges(current, previous, s.topN),
+		Expenses:    expenses,
+		ChartJSON:   expenseChartJSON(expenses),
 	}
+}
+
+func expenseChartJSON(expenses []dashboard.Change) template.JS {
+	data := expenseChartData{
+		Labels:   make([]string, len(expenses)),
+		Current:  make([]float64, len(expenses)),
+		Previous: make([]float64, len(expenses)),
+	}
+	for i, e := range expenses {
+		data.Labels[i] = e.Account
+		data.Current[i] = math.Abs(e.Current)
+		data.Previous[i] = math.Abs(e.Previous)
+	}
+	b, err := json.Marshal(data)
+	if err != nil {
+		// data is a fixed, JSON-safe struct; Marshal cannot fail here.
+		return "{}"
+	}
+	return template.JS(b)
 }
 
 // Routes registers the server's handlers on the given mux.

@@ -138,3 +138,24 @@ func TestTopChangesFewerThanN(t *testing.T) {
 		t.Fatalf("got %d changes, want 1", len(got))
 	}
 }
+
+func TestFilterByPrefix(t *testing.T) {
+	balances := []hledger.Balance{
+		{Account: "expenses:food", Amount: 100},
+		{Account: "expenses:food:groceries", Amount: 60},
+		{Account: "expenses", Amount: 500},
+		{Account: "expensesother:thing", Amount: 5},
+		{Account: "income:salary", Amount: -3000},
+	}
+
+	got := FilterByPrefix(balances, "expenses")
+	want := []string{"expenses:food", "expenses:food:groceries", "expenses"}
+	if len(got) != len(want) {
+		t.Fatalf("got %d balances, want %d: %+v", len(got), len(want), got)
+	}
+	for i, w := range want {
+		if got[i].Account != w {
+			t.Errorf("position %d: got %q, want %q", i, got[i].Account, w)
+		}
+	}
+}

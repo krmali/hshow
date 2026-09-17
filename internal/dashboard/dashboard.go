@@ -4,6 +4,7 @@ package dashboard
 import (
 	"math"
 	"sort"
+	"strings"
 	"time"
 
 	"hshow/internal/hledger"
@@ -80,4 +81,17 @@ func TopChanges(current, previous []hledger.Balance, n int) []Change {
 		changes = changes[:n]
 	}
 	return changes
+}
+
+// FilterByPrefix returns only the balances whose account is prefix or a
+// subaccount of it (prefix followed by ":"), matching hledger's own account
+// hierarchy convention.
+func FilterByPrefix(balances []hledger.Balance, prefix string) []hledger.Balance {
+	filtered := make([]hledger.Balance, 0, len(balances))
+	for _, b := range balances {
+		if b.Account == prefix || strings.HasPrefix(b.Account, prefix+":") {
+			filtered = append(filtered, b)
+		}
+	}
+	return filtered
 }
