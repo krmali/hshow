@@ -1,0 +1,52 @@
+{{define "dashboard-partial"}}
+<div class="space-y-4">
+  <div class="flex items-center justify-between">
+    <div class="text-sm text-gray-500">
+      Updated {{.GeneratedAt.Format "Jan 2, 2006 15:04"}}
+    </div>
+    <button
+      hx-get="/dashboard"
+      hx-target="#dashboard-content"
+      hx-swap="innerHTML"
+      class="px-3 py-1.5 text-sm font-medium rounded-md bg-blue-600 text-white active:bg-blue-700">
+      Refresh
+    </button>
+  </div>
+
+  {{if .Error}}
+  <div class="rounded-md border border-red-300 bg-red-50 text-red-800 p-3 text-sm">
+    <p class="font-medium">Couldn't load data from hledger</p>
+    <p class="mt-1 font-mono text-xs break-words">{{.Error}}</p>
+  </div>
+  {{else}}
+  <div class="bg-white rounded-lg shadow overflow-x-auto">
+    <table class="min-w-full text-sm">
+      <thead class="bg-gray-100 text-gray-600 text-xs uppercase">
+        <tr>
+          <th class="text-left px-3 py-2">Account</th>
+          <th class="text-right px-3 py-2">This month</th>
+          <th class="text-right px-3 py-2">Last month</th>
+          <th class="text-right px-3 py-2">Diff</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-gray-100">
+        {{range .Changes}}
+        <tr>
+          <td class="px-3 py-2 font-medium break-all">{{.Account}}</td>
+          <td class="px-3 py-2 text-right whitespace-nowrap">{{printf "%.2f" .Current}}</td>
+          <td class="px-3 py-2 text-right whitespace-nowrap text-gray-500">{{printf "%.2f" .Previous}}</td>
+          <td class="px-3 py-2 text-right whitespace-nowrap {{if ge .Diff 0.0}}text-green-600{{else}}text-red-600{{end}}">
+            {{printf "%.2f" .Diff}}
+          </td>
+        </tr>
+        {{else}}
+        <tr>
+          <td colspan="4" class="px-3 py-6 text-center text-gray-400">No account activity found.</td>
+        </tr>
+        {{end}}
+      </tbody>
+    </table>
+  </div>
+  {{end}}
+</div>
+{{end}}

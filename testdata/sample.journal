@@ -1,0 +1,65 @@
+; Sample hledger journal for hshow development/testing.
+; Covers July, August, and September 2026 so month-to-date and
+; previous-month comparisons have real data to compute against.
+
+2026-07-01 opening balances
+    assets:bank:checking          $2000.00
+    assets:cash                    $100.00
+    liabilities:creditcard        $-150.00
+    equity:opening balances
+
+2026-07-01 salary
+    assets:bank:checking          $3000.00
+    income:salary
+
+2026-07-05 rent
+    expenses:rent                 $1200.00
+    assets:bank:checking
+
+2026-07-10 groceries
+    expenses:food                  $220.00
+    assets:bank:checking
+
+2026-07-18 dinner out
+    expenses:fun                    $60.00
+    liabilities:creditcard
+
+2026-08-01 salary
+    assets:bank:checking          $3000.00
+    income:salary
+
+2026-08-05 rent
+    expenses:rent                 $1200.00
+    assets:bank:checking
+
+2026-08-08 groceries
+    expenses:food                  $260.00
+    assets:bank:checking
+
+2026-08-15 concert tickets
+    expenses:fun                   $150.00
+    liabilities:creditcard
+
+2026-08-20 credit card payment
+    liabilities:creditcard         $200.00
+    assets:bank:checking
+
+2026-09-01 salary
+    assets:bank:checking          $3000.00
+    income:salary
+
+2026-09-03 rent
+    expenses:rent                 $1200.00
+    assets:bank:checking
+
+2026-09-07 groceries
+    expenses:food                  $180.00
+    assets:bank:checking
+
+2026-09-12 groceries
+    expenses:food                  $140.00
+    assets:bank:checking
+
+2026-09-14 movie night
+    expenses:fun                    $40.00
+    liabilities:creditcard
