@@ -12,6 +12,7 @@ func date(y int, m time.Month, d int) time.Time {
 }
 
 func TestPeriodBounds(t *testing.T) {
+	// All cases use cycleDay=25 (billing cycle starts on the 25th).
 	cases := []struct {
 		name                                          string
 		now                                           time.Time
@@ -19,42 +20,55 @@ func TestPeriodBounds(t *testing.T) {
 		wantPrevStart, wantPrevEnd                    time.Time
 	}{
 		{
-			name:          "mid month",
+			// Sep 16 < 25 → cycle started Aug 25; 22 days elapsed.
+			name:          "mid cycle before cycle day",
 			now:           date(2026, time.September, 16),
-			wantCurStart:  date(2026, time.September, 1),
+			wantCurStart:  date(2026, time.August, 25),
 			wantCurEnd:    date(2026, time.September, 17),
-			wantPrevStart: date(2026, time.August, 1),
+			wantPrevStart: date(2026, time.July, 25),
 			wantPrevEnd:   date(2026, time.August, 17),
 		},
 		{
-			name:          "first of month",
+			// Sep 1 < 25 → cycle started Aug 25; 7 days elapsed.
+			name:          "start of calendar month still in previous cycle",
 			now:           date(2026, time.September, 1),
-			wantCurStart:  date(2026, time.September, 1),
+			wantCurStart:  date(2026, time.August, 25),
 			wantCurEnd:    date(2026, time.September, 2),
-			wantPrevStart: date(2026, time.August, 1),
+			wantPrevStart: date(2026, time.July, 25),
 			wantPrevEnd:   date(2026, time.August, 2),
 		},
 		{
-			name:          "day of month overflows shorter previous month",
-			now:           date(2026, time.March, 31),
-			wantCurStart:  date(2026, time.March, 1),
-			wantCurEnd:    date(2026, time.April, 1),
-			wantPrevStart: date(2026, time.February, 1),
-			wantPrevEnd:   date(2026, time.March, 1),
+			// Sep 25 >= 25 → cycle just started today; 0 days elapsed.
+			name:          "exactly on cycle start day",
+			now:           date(2026, time.September, 25),
+			wantCurStart:  date(2026, time.September, 25),
+			wantCurEnd:    date(2026, time.September, 26),
+			wantPrevStart: date(2026, time.August, 25),
+			wantPrevEnd:   date(2026, time.August, 26),
 		},
 		{
-			name:          "january rolls back to previous december",
+			// Mar 31 >= 25 → cycle started Mar 25; 6 days elapsed.
+			name:          "mid cycle after cycle day",
+			now:           date(2026, time.March, 31),
+			wantCurStart:  date(2026, time.March, 25),
+			wantCurEnd:    date(2026, time.April, 1),
+			wantPrevStart: date(2026, time.February, 25),
+			wantPrevEnd:   date(2026, time.March, 4),
+		},
+		{
+			// Jan 10 < 25 → cycle started Dec 25, 2025; rolls back across year.
+			name:          "cycle spans year boundary",
 			now:           date(2026, time.January, 10),
-			wantCurStart:  date(2026, time.January, 1),
+			wantCurStart:  date(2025, time.December, 25),
 			wantCurEnd:    date(2026, time.January, 11),
-			wantPrevStart: date(2025, time.December, 1),
-			wantPrevEnd:   date(2025, time.December, 11),
+			wantPrevStart: date(2025, time.November, 25),
+			wantPrevEnd:   date(2025, time.December, 12),
 		},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			curStart, curEnd, prevStart, prevEnd := PeriodBounds(tc.now)
+			curStart, curEnd, prevStart, prevEnd := PeriodBounds(tc.now, 25)
 			if !curStart.Equal(tc.wantCurStart) {
 				t.Errorf("curStart = %v, want %v", curStart, tc.wantCurStart)
 			}

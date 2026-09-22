@@ -1,8 +1,10 @@
 {{define "dashboard-partial"}}
 <div class="space-y-4">
+
+  {{/* ── header row ── */}}
   <div class="flex items-center justify-between">
     <div class="text-sm text-gray-500">
-      Updated {{.GeneratedAt.Format "Jan 2, 2006 15:04"}}
+      Cycle from {{.CycleStart.Format "Jan 2"}} &middot; updated {{.GeneratedAt.Format "Jan 2, 15:04"}}
     </div>
     <button
       hx-get="/dashboard"
@@ -19,13 +21,70 @@
     <p class="mt-1 font-mono text-xs break-words">{{.Error}}</p>
   </div>
   {{else}}
+
+  {{/* ── avg daily stat card ── */}}
+  <div class="bg-blue-600 text-white rounded-lg p-4 flex items-center justify-between">
+    <div>
+      <p class="text-xs font-medium text-blue-200 uppercase tracking-wide">Avg daily expenses</p>
+      <p class="text-3xl font-bold mt-0.5">{{printf "%.2f" .AvgDailyExpenses}}</p>
+      <p class="text-xs text-blue-200 mt-1">since Dec 5, 2022 &middot; {{.TrackingDays}} days</p>
+    </div>
+  </div>
+
+  {{/* ── top 7 expense accounts ── */}}
   <div class="bg-white rounded-lg shadow overflow-x-auto">
+    <div class="px-3 pt-2 pb-1 border-b border-gray-100">
+      <h2 class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Top expenses this cycle</h2>
+    </div>
     <table class="min-w-full text-sm">
-      <thead class="bg-gray-100 text-gray-600 text-xs uppercase">
+      <thead class="bg-gray-50 text-gray-500 text-xs uppercase">
         <tr>
           <th class="text-left px-3 py-2">Account</th>
-          <th class="text-right px-3 py-2">This month</th>
-          <th class="text-right px-3 py-2">Last month</th>
+          <th class="text-right px-3 py-2">This cycle</th>
+          <th class="text-right px-3 py-2">Last cycle</th>
+          <th class="text-right px-3 py-2">Diff</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-gray-100">
+        {{range .ExpenseTop7}}
+        <tr>
+          <td class="px-3 py-2 font-medium break-all">{{.Account}}</td>
+          <td class="px-3 py-2 text-right whitespace-nowrap">{{printf "%.2f" .Current}}</td>
+          <td class="px-3 py-2 text-right whitespace-nowrap text-gray-400">{{printf "%.2f" .Previous}}</td>
+          <td class="px-3 py-2 text-right whitespace-nowrap font-medium {{if ge .Diff 0.0}}text-red-600{{else}}text-green-600{{end}}">
+            {{printf "%+.2f" .Diff}}
+          </td>
+        </tr>
+        {{else}}
+        <tr>
+          <td colspan="4" class="px-3 py-6 text-center text-gray-400">No expense activity this cycle.</td>
+        </tr>
+        {{end}}
+      </tbody>
+      <tfoot class="border-t-2 border-gray-200 bg-gray-50 font-semibold text-sm">
+        <tr>
+          <td class="px-3 py-2">Total</td>
+          <td class="px-3 py-2 text-right whitespace-nowrap">{{printf "%.2f" .TotalCycleExpenses}}</td>
+          <td class="px-3 py-2 text-right whitespace-nowrap text-gray-400">{{printf "%.2f" .TotalPrevExpenses}}</td>
+          <td class="px-3 py-2 text-right whitespace-nowrap {{if ge .TotalDiff 0.0}}text-red-600{{else}}text-green-600{{end}}">
+            {{printf "%+.2f" .TotalDiff}}
+          </td>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+
+  {{/* ── top 5 all accounts ── */}}
+  <div class="bg-white rounded-lg shadow overflow-x-auto">
+    <div class="px-3 pt-2 pb-1 border-b border-gray-100">
+      <h2 class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Most active accounts</h2>
+    </div>
+    <table class="min-w-full text-sm">
+      <thead class="bg-gray-50 text-gray-500 text-xs uppercase">
+        <tr>
+          <th class="text-left px-3 py-2">Account</th>
+          <th class="text-right px-3 py-2">This cycle</th>
+          <th class="text-right px-3 py-2">Last cycle</th>
           <th class="text-right px-3 py-2">Diff</th>
         </tr>
       </thead>
@@ -34,9 +93,9 @@
         <tr>
           <td class="px-3 py-2 font-medium break-all">{{.Account}}</td>
           <td class="px-3 py-2 text-right whitespace-nowrap">{{printf "%.2f" .Current}}</td>
-          <td class="px-3 py-2 text-right whitespace-nowrap text-gray-500">{{printf "%.2f" .Previous}}</td>
-          <td class="px-3 py-2 text-right whitespace-nowrap {{if ge .Diff 0.0}}text-green-600{{else}}text-red-600{{end}}">
-            {{printf "%.2f" .Diff}}
+          <td class="px-3 py-2 text-right whitespace-nowrap text-gray-400">{{printf "%.2f" .Previous}}</td>
+          <td class="px-3 py-2 text-right whitespace-nowrap font-medium {{if ge .Diff 0.0}}text-green-600{{else}}text-red-600{{end}}">
+            {{printf "%+.2f" .Diff}}
           </td>
         </tr>
         {{else}}
@@ -48,40 +107,44 @@
     </table>
   </div>
 
+  {{/* ── expense charts ── */}}
   <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
     <div class="bg-white rounded-lg shadow p-3">
-      <h2 class="text-sm font-medium text-gray-600 mb-2">Expenses by account (this month)</h2>
+      <h2 class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Expense split — this cycle</h2>
       <div class="relative h-64">
         <canvas id="expense-pie-chart"></canvas>
       </div>
     </div>
     <div class="bg-white rounded-lg shadow p-3">
-      <h2 class="text-sm font-medium text-gray-600 mb-2">
-        Spend vs. last month <span class="text-gray-400">(&#9670; = last month)</span>
+      <h2 class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
+        This cycle vs last &nbsp;<span class="font-normal normal-case text-gray-400">(&#9670; last cycle)</span>
       </h2>
       <div class="relative h-64">
         <canvas id="expense-bar-chart"></canvas>
       </div>
     </div>
   </div>
+
   {{end}}
 </div>
 
 <script>
 (function() {
   var data = {{.ChartJSON}};
-  var palette = ["#2563eb", "#dc2626", "#059669", "#d97706", "#7c3aed", "#0891b2", "#db2777", "#65a30d"];
+  var palette = ["#2563eb","#dc2626","#059669","#d97706","#7c3aed","#0891b2","#db2777","#65a30d"];
+
+  // Shorten "expenses:foo:bar" → "foo:bar" for compact chart labels.
+  var labels = (data.labels || []).map(function(l) {
+    return l.replace(/^expenses:/, "");
+  });
 
   var pieCanvas = document.getElementById("expense-pie-chart");
-  if (pieCanvas && data.labels && data.labels.length) {
+  if (pieCanvas && labels.length) {
     new Chart(pieCanvas, {
       type: "pie",
       data: {
-        labels: data.labels,
-        datasets: [{
-          data: data.current,
-          backgroundColor: data.labels.map(function(_, i) { return palette[i % palette.length]; })
-        }]
+        labels: labels,
+        datasets: [{ data: data.current, backgroundColor: labels.map(function(_, i){ return palette[i % palette.length]; }) }]
       },
       options: {
         responsive: true,
@@ -92,27 +155,15 @@
   }
 
   var barCanvas = document.getElementById("expense-bar-chart");
-  if (barCanvas && data.labels && data.labels.length) {
+  if (barCanvas && labels.length) {
     new Chart(barCanvas, {
       data: {
-        labels: data.labels,
+        labels: labels,
         datasets: [
-          {
-            type: "bar",
-            label: "This month",
-            data: data.current,
-            backgroundColor: "#2563eb"
-          },
-          {
-            type: "line",
-            label: "Last month",
-            data: data.previous,
-            showLine: false,
-            pointStyle: "rectRot",
-            pointRadius: 7,
-            pointBackgroundColor: "#dc2626",
-            pointBorderColor: "#dc2626"
-          }
+          { type: "bar",  label: "This cycle", data: data.current,  backgroundColor: "#2563eb" },
+          { type: "line", label: "Last cycle",  data: data.previous, showLine: false,
+            pointStyle: "rectRot", pointRadius: 7,
+            pointBackgroundColor: "#dc2626", pointBorderColor: "#dc2626" }
         ]
       },
       options: {

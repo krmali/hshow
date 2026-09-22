@@ -35,8 +35,10 @@ func NewRunner(bin, journalPath string) Runner {
 const dateLayout = "2006-01-02"
 
 // Balances returns the net change per account between begin (inclusive) and
-// end (exclusive), matching hledger's -b/-e semantics.
-func (r Runner) Balances(begin, end time.Time) ([]Balance, error) {
+// end (exclusive), matching hledger's -b/-e semantics. An optional
+// accountFilter (e.g. "^expenses") is appended as a positional hledger query
+// argument to restrict which accounts are returned.
+func (r Runner) Balances(begin, end time.Time, accountFilter ...string) ([]Balance, error) {
 	args := []string{
 		"balance",
 		"-O", "csv",
@@ -45,6 +47,11 @@ func (r Runner) Balances(begin, end time.Time) ([]Balance, error) {
 		"-f", r.JournalPath,
 		"-b", begin.Format(dateLayout),
 		"-e", end.Format(dateLayout),
+	}
+	for _, f := range accountFilter {
+		if f != "" {
+			args = append(args, f)
+		}
 	}
 	cmd := exec.Command(r.Bin, args...)
 	var stdout, stderr bytes.Buffer

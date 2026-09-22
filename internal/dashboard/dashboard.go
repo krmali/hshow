@@ -19,30 +19,26 @@ type Change struct {
 	Diff     float64
 }
 
-// PeriodBounds returns the [start, end) bounds for the current
-// month-to-date period and the comparable period last month, given the
-// current instant now. end bounds are exclusive, matching hledger's -e
-// semantics, and are set to the day after the last included day so that
-// transactions dated on that day are included.
-func PeriodBounds(now time.Time) (curStart, curEnd, prevStart, prevEnd time.Time) {
+// PeriodBounds returns the [start, end) bounds for the current billing cycle
+// (which starts on cycleDay of each month) and the matching prior cycle of
+// equal length, given the current instant now. end values are exclusive,
+// matching hledger's -e semantics.
+func PeriodBounds(now time.Time, cycleDay int) (curStart, curEnd, prevStart, prevEnd time.Time) {
 	loc := now.Location()
-	curStart = time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, loc)
 	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, loc)
+
+	if now.Day() >= cycleDay {
+		curStart = time.Date(now.Year(), now.Month(), cycleDay, 0, 0, 0, 0, loc)
+	} else {
+		m := now.AddDate(0, -1, 0)
+		curStart = time.Date(m.Year(), m.Month(), cycleDay, 0, 0, 0, 0, loc)
+	}
 	curEnd = today.AddDate(0, 0, 1)
 
+	daysElapsed := int(today.Sub(curStart).Hours() / 24)
 	prevStart = curStart.AddDate(0, -1, 0)
-	daysElapsed := now.Day()
-	prevMonthLen := daysInMonth(prevStart.Year(), prevStart.Month())
-	if daysElapsed > prevMonthLen {
-		daysElapsed = prevMonthLen
-	}
-	prevEnd = prevStart.AddDate(0, 0, daysElapsed)
+	prevEnd = prevStart.AddDate(0, 0, daysElapsed+1)
 	return
-}
-
-func daysInMonth(year int, month time.Month) int {
-	// Day 0 of next month is the last day of month.
-	return time.Date(year, month+1, 0, 0, 0, 0, 0, time.UTC).Day()
 }
 
 // TopChanges merges current and previous period balances by account,
