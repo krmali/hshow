@@ -11,13 +11,14 @@ import (
 	"hshow/internal/web"
 )
 
-//go:embed templates
-var templatesFS embed.FS
+//go:embed templates static
+var assetsFS embed.FS
 
 func main() {
 	addr := flag.String("addr", envOr("HSHOW_ADDR", "127.0.0.1:8080"), "address to listen on")
 	journal := flag.String("journal", os.Getenv("HSHOW_JOURNAL"), "path to the hledger journal file (required)")
 	hledgerBin := flag.String("hledger-bin", envOr("HSHOW_HLEDGER_BIN", "hledger"), "path to the hledger executable")
+	password := flag.String("password", os.Getenv("HSHOW_PASSWORD"), "dashboard password (leave empty to disable auth)")
 	flag.Parse()
 
 	if *journal == "" {
@@ -26,7 +27,7 @@ func main() {
 
 	runner := hledger.NewRunner(*hledgerBin, *journal)
 
-	srv, err := web.NewServer(templatesFS, runner)
+	srv, err := web.NewServer(assetsFS, runner, *password)
 	if err != nil {
 		log.Fatalf("initializing server: %v", err)
 	}
@@ -34,7 +35,7 @@ func main() {
 	mux := http.NewServeMux()
 	srv.Routes(mux)
 
-	log.Printf("hshow listening on %s (journal=%s, hledger=%s)", *addr, *journal, *hledgerBin)
+	log.Printf("hshow listening on %s (journal=%s, hledger=%s, auth=%v)", *addr, *journal, *hledgerBin, *password != "")
 	if err := http.ListenAndServe(*addr, mux); err != nil {
 		log.Fatal(err)
 	}

@@ -3,6 +3,12 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#2563eb">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="hshow">
+<link rel="manifest" href="/manifest.json">
+<link rel="apple-touch-icon" href="/icon-192.png">
 <title>hshow</title>
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://unpkg.com/htmx.org@2.0.4"></script>
@@ -10,12 +16,24 @@
 </head>
 <body class="bg-gray-50 text-gray-900 min-h-screen">
   <div class="max-w-3xl mx-auto p-4 sm:p-6">
-    <header class="mb-4">
-      <h1 class="text-xl font-semibold">hshow</h1>
-      <p class="text-sm text-gray-500">Account activity dashboard</p>
+    <header class="mb-4 flex items-center justify-between">
+      <div>
+        <h1 class="text-xl font-semibold">hshow</h1>
+        <p class="text-sm text-gray-500">Account activity dashboard</p>
+      </div>
+      {{if .HasAuth}}
+      <a href="/logout" class="text-xs text-gray-400 hover:text-gray-600 py-1">Sign out</a>
+      {{end}}
     </header>
     {{template "content" .}}
   </div>
+  <script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', function() {
+      navigator.serviceWorker.register('/sw.js');
+    });
+  }
+  </script>
 </body>
 </html>
 {{end}}

@@ -5,6 +5,7 @@ COPY go.mod ./
 COPY main.go ./
 COPY internal ./internal
 COPY templates ./templates
+COPY static ./static
 RUN CGO_ENABLED=0 GOOS=linux go build -o /out/hshow .
 
 # --- runtime image, includes the hledger CLI ---
