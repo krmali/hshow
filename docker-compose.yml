@@ -8,5 +8,6 @@ services:
     environment:
       HSHOW_JOURNAL: /data/journal.hledger
       HSHOW_PASSWORD: ${HSHOW_PASSWORD:-}
+      HSHOW_BASE_PATH: ${HSHOW_BASE_PATH:-}
     volumes:
       - ${HSHOW_JOURNAL_HOST_PATH:-./testdata/sample.journal}:/data/journal.hledger:ro

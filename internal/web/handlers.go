@@ -15,6 +15,7 @@ import (
 	"log"
 	"math"
 	"net/http"
+	"strings"
 	"time"
 
 	"hshow/internal/dashboard"
@@ -39,11 +40,13 @@ type Server struct {
 	topN        int
 	cookieToken string // empty means no auth required
 	hasAuth     bool
+	basePath    string // e.g. "/hshow" — no trailing slash; empty = serve at root
 }
 
 // NewServer parses templates from assetsFS and returns a Server.
 // password may be empty to disable authentication.
-func NewServer(assetsFS fs.FS, runner hledger.Runner, password string) (*Server, error) {
+// basePath is the subpath prefix nginx strips before forwarding, e.g. "/hshow".
+func NewServer(assetsFS fs.FS, runner hledger.Runner, password, basePath string) (*Server, error) {
 	tmpl, err := template.ParseFS(assetsFS, "templates/*.html", "templates/partials/*.html")
 	if err != nil {
 		return nil, err
@@ -60,6 +63,7 @@ func NewServer(assetsFS fs.FS, runner hledger.Runner, password string) (*Server,
 		runner:   runner,
 		now:      time.Now,
 		topN:     5,
+		basePath: strings.TrimRight(basePath, "/"),
 	}
 
 	if password != "" {
@@ -71,14 +75,12 @@ func NewServer(assetsFS fs.FS, runner hledger.Runner, password string) (*Server,
 }
 
 // deriveToken produces a stable session token from a password using HMAC-SHA256.
-// Changing the password automatically invalidates all existing sessions.
 func deriveToken(password string) string {
 	mac := hmac.New(sha256.New, []byte(password))
 	mac.Write([]byte("session"))
 	return hex.EncodeToString(mac.Sum(nil))
 }
 
-// isAuthenticated reports whether the request carries a valid session cookie.
 func (s *Server) isAuthenticated(r *http.Request) bool {
 	if !s.hasAuth {
 		return true
@@ -90,8 +92,8 @@ func (s *Server) isAuthenticated(r *http.Request) bool {
 	return hmac.Equal([]byte(c.Value), []byte(s.cookieToken))
 }
 
-// requireAuth is middleware that redirects unauthenticated requests to /login.
-// For htmx requests it sets HX-Redirect instead of a 302.
+// requireAuth redirects unauthenticated requests to the login page.
+// For htmx requests it sets HX-Redirect so the full page navigates.
 func (s *Server) requireAuth(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if s.isAuthenticated(r) {
@@ -99,11 +101,11 @@ func (s *Server) requireAuth(next http.HandlerFunc) http.HandlerFunc {
 			return
 		}
 		if r.Header.Get("HX-Request") == "true" {
-			w.Header().Set("HX-Redirect", "/login")
+			w.Header().Set("HX-Redirect", s.basePath+"/login")
 			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}
-		http.Redirect(w, r, "/login", http.StatusFound)
+		http.Redirect(w, r, s.basePath+"/login", http.StatusFound)
 	}
 }
 
@@ -114,7 +116,7 @@ func (s *Server) setSessionCookie(w http.ResponseWriter) {
 		Path:     "/",
 		HttpOnly: true,
 		SameSite: http.SameSiteLaxMode,
-		MaxAge:   365 * 24 * 60 * 60, // 1 year
+		MaxAge:   365 * 24 * 60 * 60,
 	})
 }
 
@@ -125,8 +127,9 @@ type expenseChartData struct {
 	Previous []float64 `json:"previous"`
 }
 
-// viewData is the data passed to all dashboard templates.
+// viewData is passed to all dashboard templates.
 type viewData struct {
+	BasePath           string
 	GeneratedAt        time.Time
 	CycleStart         time.Time
 	Changes            []dashboard.Change
@@ -141,17 +144,23 @@ type viewData struct {
 	Error              string
 }
 
+// loginData is passed to the login template.
+type loginData struct {
+	BasePath string
+	Error    string
+}
+
 func (s *Server) loadView() viewData {
 	now := s.now()
 	curStart, curEnd, prevStart, prevEnd := dashboard.PeriodBounds(now, cycleDay)
 
 	current, err := s.runner.Balances(curStart, curEnd)
 	if err != nil {
-		return viewData{GeneratedAt: now, HasAuth: s.hasAuth, Error: err.Error()}
+		return viewData{BasePath: s.basePath, GeneratedAt: now, HasAuth: s.hasAuth, Error: err.Error()}
 	}
 	previous, err := s.runner.Balances(prevStart, prevEnd)
 	if err != nil {
-		return viewData{GeneratedAt: now, HasAuth: s.hasAuth, Error: err.Error()}
+		return viewData{BasePath: s.basePath, GeneratedAt: now, HasAuth: s.hasAuth, Error: err.Error()}
 	}
 
 	currentExp := dashboard.FilterByPrefix(current, expensesPrefix)
@@ -174,6 +183,7 @@ func (s *Server) loadView() viewData {
 	}
 
 	return viewData{
+		BasePath:           s.basePath,
 		GeneratedAt:        now,
 		CycleStart:         curStart,
 		Changes:            dashboard.TopChanges(current, previous, s.topN),
@@ -215,6 +225,8 @@ func expenseChartJSON(expenses []dashboard.Change) template.JS {
 }
 
 // Routes registers all HTTP handlers on the given mux.
+// Routes are always registered at their root paths because nginx strips the
+// base path prefix via rewrite before forwarding to hshow.
 func (s *Server) Routes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /login", s.handleLoginGet)
 	mux.HandleFunc("POST /login", s.handleLoginPost)
@@ -229,7 +241,7 @@ func (s *Server) Routes(mux *http.ServeMux) {
 
 func (s *Server) handleLoginGet(w http.ResponseWriter, r *http.Request) {
 	if !s.hasAuth || s.isAuthenticated(r) {
-		http.Redirect(w, r, "/", http.StatusFound)
+		http.Redirect(w, r, s.basePath+"/", http.StatusFound)
 		return
 	}
 	s.renderLogin(w, "")
@@ -243,7 +255,7 @@ func (s *Server) handleLoginPost(w http.ResponseWriter, r *http.Request) {
 	password := r.FormValue("password")
 	if !s.hasAuth || deriveToken(password) == s.cookieToken {
 		s.setSessionCookie(w)
-		http.Redirect(w, r, "/", http.StatusFound)
+		http.Redirect(w, r, s.basePath+"/", http.StatusFound)
 		return
 	}
 	s.renderLogin(w, "Incorrect password.")
@@ -257,7 +269,7 @@ func (s *Server) handleLogout(w http.ResponseWriter, r *http.Request) {
 		MaxAge:  -1,
 		Expires: time.Unix(0, 0),
 	})
-	http.Redirect(w, r, "/login", http.StatusFound)
+	http.Redirect(w, r, s.basePath+"/login", http.StatusFound)
 }
 
 func (s *Server) handleManifest(w http.ResponseWriter, r *http.Request) {
@@ -265,22 +277,21 @@ func (s *Server) handleManifest(w http.ResponseWriter, r *http.Request) {
 		"name":             "hshow",
 		"short_name":       "hshow",
 		"description":      "Account activity dashboard",
-		"start_url":        "/",
+		"start_url":        s.basePath + "/",
 		"display":          "standalone",
 		"background_color": "#f9fafb",
 		"theme_color":      "#2563eb",
 		"icons": []map[string]string{
-			{"src": "/icon-192.png", "sizes": "192x192", "type": "image/png"},
-			{"src": "/icon-512.png", "sizes": "512x512", "type": "image/png"},
+			{"src": s.basePath + "/icon-192.png", "sizes": "192x192", "type": "image/png"},
+			{"src": s.basePath + "/icon-512.png", "sizes": "512x512", "type": "image/png"},
 		},
 	}
 	w.Header().Set("Content-Type", "application/manifest+json")
 	json.NewEncoder(w).Encode(manifest)
 }
 
-// handleIcon generates a solid-color square PNG icon on the fly.
 func (s *Server) handleIcon(w http.ResponseWriter, r *http.Request, size int) {
-	iconColor := color.RGBA{R: 0x25, G: 0x63, B: 0xeb, A: 0xff} // #2563eb
+	iconColor := color.RGBA{R: 0x25, G: 0x63, B: 0xeb, A: 0xff}
 	img := image.NewRGBA(image.Rect(0, 0, size, size))
 	for y := range size {
 		for x := range size {
@@ -297,10 +308,9 @@ func (s *Server) handleIcon(w http.ResponseWriter, r *http.Request, size int) {
 	w.Write(buf.Bytes())
 }
 
-// handleSW serves the service worker from the embedded static directory.
 func (s *Server) handleSW(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/javascript")
-	w.Header().Set("Service-Worker-Allowed", "/")
+	w.Header().Set("Service-Worker-Allowed", s.basePath+"/")
 	data, err := fs.ReadFile(s.staticFS, "sw.js")
 	if err != nil {
 		http.Error(w, "not found", http.StatusNotFound)
@@ -327,7 +337,7 @@ func (s *Server) render(w http.ResponseWriter, name string, data viewData) {
 
 func (s *Server) renderLogin(w http.ResponseWriter, errMsg string) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	if err := s.tmpl.ExecuteTemplate(w, "login", map[string]string{"Error": errMsg}); err != nil {
+	if err := s.tmpl.ExecuteTemplate(w, "login", loginData{BasePath: s.basePath, Error: errMsg}); err != nil {
 		log.Printf("render login: %v", err)
 		http.Error(w, "internal server error", http.StatusInternalServerError)
 	}

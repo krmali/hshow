@@ -7,8 +7,8 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="hshow">
-<link rel="manifest" href="/manifest.json">
-<link rel="apple-touch-icon" href="/icon-192.png">
+<link rel="manifest" href="{{.BasePath}}/manifest.json">
+<link rel="apple-touch-icon" href="{{.BasePath}}/icon-192.png">
 <title>hshow</title>
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://unpkg.com/htmx.org@2.0.4"></script>
@@ -22,7 +22,7 @@
         <p class="text-sm text-gray-500">Account activity dashboard</p>
       </div>
       {{if .HasAuth}}
-      <a href="/logout" class="text-xs text-gray-400 hover:text-gray-600 py-1">Sign out</a>
+      <a href="{{.BasePath}}/logout" class="text-xs text-gray-400 hover:text-gray-600 py-1">Sign out</a>
       {{end}}
     </header>
     {{template "content" .}}
@@ -30,7 +30,7 @@
   <script>
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', function() {
-      navigator.serviceWorker.register('/sw.js');
+      navigator.serviceWorker.register('{{.BasePath}}/sw.js', {scope: '{{.BasePath}}/'});
     });
   }
   </script>

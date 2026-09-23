@@ -7,7 +7,7 @@
       Cycle from {{.CycleStart.Format "Jan 2"}} &middot; updated {{.GeneratedAt.Format "Jan 2, 15:04"}}
     </div>
     <button
-      hx-get="/dashboard"
+      hx-get="{{.BasePath}}/dashboard"
       hx-target="#dashboard-content"
       hx-swap="innerHTML"
       class="px-3 py-1.5 text-sm font-medium rounded-md bg-blue-600 text-white active:bg-blue-700">

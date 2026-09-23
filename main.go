@@ -19,6 +19,7 @@ func main() {
 	journal := flag.String("journal", os.Getenv("HSHOW_JOURNAL"), "path to the hledger journal file (required)")
 	hledgerBin := flag.String("hledger-bin", envOr("HSHOW_HLEDGER_BIN", "hledger"), "path to the hledger executable")
 	password := flag.String("password", os.Getenv("HSHOW_PASSWORD"), "dashboard password (leave empty to disable auth)")
+	basePath := flag.String("base-path", envOr("HSHOW_BASE_PATH", ""), "subpath prefix nginx strips before forwarding, e.g. /hshow")
 	flag.Parse()
 
 	if *journal == "" {
@@ -27,7 +28,7 @@ func main() {
 
 	runner := hledger.NewRunner(*hledgerBin, *journal)
 
-	srv, err := web.NewServer(assetsFS, runner, *password)
+	srv, err := web.NewServer(assetsFS, runner, *password, *basePath)
 	if err != nil {
 		log.Fatalf("initializing server: %v", err)
 	}
