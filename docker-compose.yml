@@ -6,7 +6,7 @@ services:
     ports:
       - "127.0.0.1:8080:8080"
     environment:
-      HSHOW_JOURNAL: /data/journal.hledger
+      HSHOW_JOURNAL: /data/hledger.journal
       HSHOW_PASSWORD: ${HSHOW_PASSWORD:-}
       HSHOW_BASE_PATH: ${HSHOW_BASE_PATH:-}
     volumes:
