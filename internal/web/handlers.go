@@ -139,6 +139,8 @@ type viewData struct {
 	TotalDiff          float64
 	AvgDailyExpenses   float64
 	TrackingDays       int
+	AvgDailyCycle      float64
+	CycleDays          int
 	ChartJSON          template.JS
 	HasAuth            bool
 	Error              string
@@ -181,6 +183,11 @@ func (s *Server) loadView() viewData {
 	if trackDays > 0 {
 		avgDaily = totalAllTime / float64(trackDays)
 	}
+	cycleDays := int(today.Sub(curStart).Hours()/24) + 1
+	var avgDailyCycle float64
+	if cycleDays > 0 {
+		avgDailyCycle = totalCycle / float64(cycleDays)
+	}
 
 	return viewData{
 		BasePath:           s.basePath,
@@ -193,6 +200,8 @@ func (s *Server) loadView() viewData {
 		TotalDiff:          totalCycle - totalPrev,
 		AvgDailyExpenses:   avgDaily,
 		TrackingDays:       trackDays,
+		AvgDailyCycle:      avgDailyCycle,
+		CycleDays:          cycleDays,
 		ChartJSON:          expenseChartJSON(expenseTop7),
 		HasAuth:            s.hasAuth,
 	}
