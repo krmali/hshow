@@ -1,5 +1,6 @@
 # hshow
 
+
 A tiny dashboard server for an [hledger](https://hledger.org) journal. On
 every request it shells out to the `hledger` CLI, computes month-to-date
 activity per account compared to the same period last month, and renders a

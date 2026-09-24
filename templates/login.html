@@ -4,6 +4,21 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>hshow</title>
+<script>
+(function(){
+  var t; try { t = localStorage.getItem('hshow-theme'); } catch(e) {}
+  var sysDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+  if (t === 'dark' || (t !== 'light' && sysDark)) document.documentElement.classList.add('dark');
+})();
+</script>
+<style>
+html.dark body      { background-color: #111827; }
+html.dark h1        { color: #f9fafb; }
+html.dark .text-gray-400 { color: #6b7280 !important; }
+html.dark input     { background-color: #1f2937 !important; border-color: #4b5563 !important; color: #f9fafb !important; }
+html.dark input::placeholder { color: #6b7280 !important; }
+html.dark .text-red-600 { color: #f87171 !important; }
+</style>
 <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-gray-50 min-h-screen flex items-center justify-center p-6">
